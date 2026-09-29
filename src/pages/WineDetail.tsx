@@ -9,7 +9,7 @@ import { useUser } from "../context/UserContext";
 import { useWineDetail } from "../hooks/useWineDetail";
 import { supabase } from "../lib/supabase";
 import { uploadLabelPhoto } from "../lib/uploadPhoto";
-import { WINE_TYPE_LABELS, type WineType } from "../types";
+import { APPELLATION_TYPES, WINE_TYPE_LABELS, type AppellationType, type WineType } from "../types";
 
 export function WineDetail() {
   const { id } = useParams<{ id: string }>();
@@ -86,6 +86,11 @@ export function WineDetail() {
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <WineTypeBadge type={wine.type} />
+            {(wine.appellation_type || wine.appellation_name) && (
+              <span className="rounded-full bg-gold-500/15 px-2.5 py-1 text-xs font-medium text-gold-500">
+                {[wine.appellation_type, wine.appellation_name].filter(Boolean).join(" ")}
+              </span>
+            )}
             {wine.region && (
               <span className="rounded-full bg-white px-2.5 py-1 text-xs text-wine-700/70">
                 {wine.region}
@@ -184,6 +189,10 @@ function WineEditForm({
   const [type, setType] = useState<WineType>(wine.type);
   const [vintage, setVintage] = useState(wine.vintage?.toString() ?? "");
   const [region, setRegion] = useState(wine.region ?? "");
+  const [appellationType, setAppellationType] = useState<AppellationType | "">(
+    wine.appellation_type ?? ""
+  );
+  const [appellationName, setAppellationName] = useState(wine.appellation_name ?? "");
   const [grapes, setGrapes] = useState(wine.grape_varieties ?? "");
   const [price, setPrice] = useState(wine.price?.toString() ?? "");
   const [saving, setSaving] = useState(false);
@@ -198,6 +207,8 @@ function WineEditForm({
         type,
         vintage: vintage ? Number(vintage) : null,
         region: region.trim() || null,
+        appellation_type: appellationType || null,
+        appellation_name: appellationName.trim() || null,
         grape_varieties: grapes.trim() || null,
         price: price ? Number(price) : null,
         updated_at: new Date().toISOString(),
@@ -235,6 +246,26 @@ function WineEditForm({
           onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ""))}
           placeholder="Prix (€)"
           inputMode="decimal"
+          className="input"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <select
+          value={appellationType}
+          onChange={(e) => setAppellationType(e.target.value as AppellationType | "")}
+          className="input"
+        >
+          <option value="">Mention —</option>
+          {APPELLATION_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <input
+          value={appellationName}
+          onChange={(e) => setAppellationName(e.target.value)}
+          placeholder="Appellation (ex. Bordeaux)"
           className="input"
         />
       </div>

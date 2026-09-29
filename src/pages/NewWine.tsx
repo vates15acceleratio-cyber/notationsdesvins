@@ -4,7 +4,7 @@ import { PhotoInput } from "../components/PhotoInput";
 import { useUser } from "../context/UserContext";
 import { supabase } from "../lib/supabase";
 import { uploadLabelPhoto } from "../lib/uploadPhoto";
-import { WINE_TYPE_LABELS, type WineType } from "../types";
+import { APPELLATION_TYPES, WINE_TYPE_LABELS, type AppellationType, type WineType } from "../types";
 
 export function NewWine() {
   const navigate = useNavigate();
@@ -14,6 +14,8 @@ export function NewWine() {
   const [type, setType] = useState<WineType>("rouge");
   const [vintage, setVintage] = useState("");
   const [region, setRegion] = useState("");
+  const [appellationType, setAppellationType] = useState<AppellationType | "">("");
+  const [appellationName, setAppellationName] = useState("");
   const [grapes, setGrapes] = useState("");
   const [price, setPrice] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -38,6 +40,8 @@ export function NewWine() {
           type,
           vintage: vintage ? Number(vintage) : null,
           region: region.trim() || null,
+          appellation_type: appellationType || null,
+          appellation_name: appellationName.trim() || null,
           grape_varieties: grapes.trim() || null,
           price: price ? Number(price) : null,
           created_by: userId,
@@ -121,6 +125,31 @@ export function NewWine() {
               value={price}
               onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ""))}
               inputMode="decimal"
+              className="input"
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Mention">
+            <select
+              value={appellationType}
+              onChange={(e) => setAppellationType(e.target.value as AppellationType | "")}
+              className="input"
+            >
+              <option value="">—</option>
+              {APPELLATION_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Appellation">
+            <input
+              value={appellationName}
+              onChange={(e) => setAppellationName(e.target.value)}
+              placeholder="Ex. Bordeaux, Chablis…"
               className="input"
             />
           </Field>

@@ -18,6 +18,10 @@ export const WINE_TYPE_COLORS: Record<WineType, string> = {
   liquoreux: "#d9a441",
 };
 
+export type AppellationType = "AOP" | "AOC" | "IGP" | "Vin de France";
+
+export const APPELLATION_TYPES: AppellationType[] = ["AOP", "AOC", "IGP", "Vin de France"];
+
 export interface Profile {
   id: string;
   pseudo: string;
@@ -31,6 +35,8 @@ export interface Wine {
   type: WineType;
   vintage: number | null;
   region: string | null;
+  appellation_type: AppellationType | null;
+  appellation_name: string | null;
   grape_varieties: string | null;
   price: number | null;
   photo_url: string | null;
