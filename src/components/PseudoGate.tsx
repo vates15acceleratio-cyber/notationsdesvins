@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useUser } from "../context/UserContext";
 
 export function PseudoGate({ children }: { children: ReactNode }) {
-  const { profile, loading, setPseudo } = useUser();
+  const { profile, loading, connectionError, setPseudo } = useUser();
   const [input, setInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,8 +28,9 @@ export function PseudoGate({ children }: { children: ReactNode }) {
     setError(null);
     try {
       await setPseudo(trimmed);
-    } catch {
-      setError("Impossible d'enregistrer ce pseudo, réessaie.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setError(`Impossible d'enregistrer ce pseudo : ${message}`);
     } finally {
       setSubmitting(false);
     }
@@ -50,6 +51,11 @@ export function PseudoGate({ children }: { children: ReactNode }) {
             Carnet de dégustation partagé. Choisis ton pseudo pour commencer.
           </p>
         </div>
+        {connectionError && (
+          <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            Connexion au serveur impossible : {connectionError}
+          </p>
+        )}
         <input
           autoFocus
           value={input}
