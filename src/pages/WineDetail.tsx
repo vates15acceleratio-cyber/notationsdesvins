@@ -9,7 +9,7 @@ import { useUser } from "../context/UserContext";
 import { useWineDetail } from "../hooks/useWineDetail";
 import { supabase } from "../lib/supabase";
 import { uploadLabelPhoto } from "../lib/uploadPhoto";
-import { APPELLATION_TYPES, WINE_TYPE_LABELS, type AppellationType, type WineType } from "../types";
+import { APPELLATION_SUGGESTIONS, WINE_TYPE_LABELS, type WineType } from "../types";
 
 export function WineDetail() {
   const { id } = useParams<{ id: string }>();
@@ -91,9 +91,9 @@ export function WineDetail() {
                 {[wine.appellation_type, wine.appellation_name].filter(Boolean).join(" ")}
               </span>
             )}
-            {wine.region && (
+            {(wine.region || wine.country) && (
               <span className="rounded-full bg-white px-2.5 py-1 text-xs text-wine-700/70">
-                {wine.region}
+                {[wine.region, wine.country].filter(Boolean).join(", ")}
               </span>
             )}
             {wine.grape_varieties && (
@@ -189,9 +189,8 @@ function WineEditForm({
   const [type, setType] = useState<WineType>(wine.type);
   const [vintage, setVintage] = useState(wine.vintage?.toString() ?? "");
   const [region, setRegion] = useState(wine.region ?? "");
-  const [appellationType, setAppellationType] = useState<AppellationType | "">(
-    wine.appellation_type ?? ""
-  );
+  const [country, setCountry] = useState(wine.country ?? "");
+  const [appellationType, setAppellationType] = useState(wine.appellation_type ?? "");
   const [appellationName, setAppellationName] = useState(wine.appellation_name ?? "");
   const [grapes, setGrapes] = useState(wine.grape_varieties ?? "");
   const [price, setPrice] = useState(wine.price?.toString() ?? "");
@@ -207,7 +206,8 @@ function WineEditForm({
         type,
         vintage: vintage ? Number(vintage) : null,
         region: region.trim() || null,
-        appellation_type: appellationType || null,
+        country: country.trim() || null,
+        appellation_type: appellationType.trim() || null,
         appellation_name: appellationName.trim() || null,
         grape_varieties: grapes.trim() || null,
         price: price ? Number(price) : null,
@@ -241,27 +241,23 @@ function WineEditForm({
       <input value={producer} onChange={(e) => setProducer(e.target.value)} placeholder="Producteur" className="input" />
       <div className="grid grid-cols-2 gap-3">
         <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="Région" className="input" />
-        <input
-          value={price}
-          onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ""))}
-          placeholder="Prix (€)"
-          inputMode="decimal"
-          className="input"
-        />
+        <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Pays" className="input" />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <select
-          value={appellationType}
-          onChange={(e) => setAppellationType(e.target.value as AppellationType | "")}
-          className="input"
-        >
-          <option value="">Mention —</option>
-          {APPELLATION_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+        <div>
+          <input
+            list="appellation-suggestions-edit"
+            value={appellationType}
+            onChange={(e) => setAppellationType(e.target.value)}
+            placeholder="Mention (AOP, DOCG…)"
+            className="input"
+          />
+          <datalist id="appellation-suggestions-edit">
+            {APPELLATION_SUGGESTIONS.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+        </div>
         <input
           value={appellationName}
           onChange={(e) => setAppellationName(e.target.value)}
@@ -269,6 +265,13 @@ function WineEditForm({
           className="input"
         />
       </div>
+      <input
+        value={price}
+        onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ""))}
+        placeholder="Prix (€)"
+        inputMode="decimal"
+        className="input"
+      />
       <input value={grapes} onChange={(e) => setGrapes(e.target.value)} placeholder="Cépage(s)" className="input" />
       <button
         onClick={handleSave}

@@ -18,9 +18,22 @@ export const WINE_TYPE_COLORS: Record<WineType, string> = {
   liquoreux: "#d9a441",
 };
 
-export type AppellationType = "AOP" | "AOC" | "IGP" | "Vin de France";
-
-export const APPELLATION_TYPES: AppellationType[] = ["AOP", "AOC", "IGP", "Vin de France"];
+// Texte libre (pas une liste fermée) pour couvrir les désignations étrangères :
+// DOCG/DOC/IGT (Italie), DOCa/DO (Espagne), AVA (États-Unis), GI (Australie), etc.
+export const APPELLATION_SUGGESTIONS = [
+  "AOP",
+  "AOC",
+  "IGP",
+  "Vin de France",
+  "DOCG",
+  "DOC",
+  "IGT",
+  "DOCa",
+  "DO",
+  "AVA",
+  "GI",
+  "Qualitätswein",
+];
 
 export interface Profile {
   id: string;
@@ -35,7 +48,8 @@ export interface Wine {
   type: WineType;
   vintage: number | null;
   region: string | null;
-  appellation_type: AppellationType | null;
+  country: string | null;
+  appellation_type: string | null;
   appellation_name: string | null;
   grape_varieties: string | null;
   price: number | null;

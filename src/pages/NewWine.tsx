@@ -4,7 +4,7 @@ import { PhotoInput } from "../components/PhotoInput";
 import { useUser } from "../context/UserContext";
 import { supabase } from "../lib/supabase";
 import { uploadLabelPhoto } from "../lib/uploadPhoto";
-import { APPELLATION_TYPES, WINE_TYPE_LABELS, type AppellationType, type WineType } from "../types";
+import { APPELLATION_SUGGESTIONS, WINE_TYPE_LABELS, type WineType } from "../types";
 
 export function NewWine() {
   const navigate = useNavigate();
@@ -14,7 +14,8 @@ export function NewWine() {
   const [type, setType] = useState<WineType>("rouge");
   const [vintage, setVintage] = useState("");
   const [region, setRegion] = useState("");
-  const [appellationType, setAppellationType] = useState<AppellationType | "">("");
+  const [country, setCountry] = useState("");
+  const [appellationType, setAppellationType] = useState("");
   const [appellationName, setAppellationName] = useState("");
   const [grapes, setGrapes] = useState("");
   const [price, setPrice] = useState("");
@@ -40,7 +41,8 @@ export function NewWine() {
           type,
           vintage: vintage ? Number(vintage) : null,
           region: region.trim() || null,
-          appellation_type: appellationType || null,
+          country: country.trim() || null,
+          appellation_type: appellationType.trim() || null,
           appellation_name: appellationName.trim() || null,
           grape_varieties: grapes.trim() || null,
           price: price ? Number(price) : null,
@@ -120,11 +122,11 @@ export function NewWine() {
           <Field label="Région">
             <input value={region} onChange={(e) => setRegion(e.target.value)} className="input" />
           </Field>
-          <Field label="Prix (€)">
+          <Field label="Pays">
             <input
-              value={price}
-              onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ""))}
-              inputMode="decimal"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              placeholder="Ex. Italie, Espagne…"
               className="input"
             />
           </Field>
@@ -132,28 +134,37 @@ export function NewWine() {
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Mention">
-            <select
+            <input
+              list="appellation-suggestions"
               value={appellationType}
-              onChange={(e) => setAppellationType(e.target.value as AppellationType | "")}
+              onChange={(e) => setAppellationType(e.target.value)}
+              placeholder="AOP, DOCG, AVA…"
               className="input"
-            >
-              <option value="">—</option>
-              {APPELLATION_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
+            />
+            <datalist id="appellation-suggestions">
+              {APPELLATION_SUGGESTIONS.map((s) => (
+                <option key={s} value={s} />
               ))}
-            </select>
+            </datalist>
           </Field>
           <Field label="Appellation">
             <input
               value={appellationName}
               onChange={(e) => setAppellationName(e.target.value)}
-              placeholder="Ex. Bordeaux, Chablis…"
+              placeholder="Ex. Bordeaux, Chianti…"
               className="input"
             />
           </Field>
         </div>
+
+        <Field label="Prix (€)">
+          <input
+            value={price}
+            onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ""))}
+            inputMode="decimal"
+            className="input"
+          />
+        </Field>
 
         <Field label="Cépage(s)">
           <input

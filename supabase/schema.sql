@@ -24,6 +24,9 @@ create table if not exists wines (
   type wine_type not null default 'rouge',
   vintage int,
   region text,
+  country text,
+  -- Texte libre (pas de liste fermée) pour couvrir les désignations étrangères :
+  -- DOCG/DOC/IGT (Italie), DOCa/DO (Espagne), AVA (États-Unis), etc.
   appellation_type text,
   appellation_name text,
   grape_varieties text,
@@ -34,15 +37,13 @@ create table if not exists wines (
   updated_at timestamptz not null default now()
 );
 
--- Migration pour une base déjà créée avant l'ajout de la mention AOP/AOC
+-- Migration pour une base déjà créée avant l'ajout de la mention/pays
 alter table wines add column if not exists appellation_type text;
 alter table wines add column if not exists appellation_name text;
-do $$ begin
-  alter table wines add constraint wines_appellation_type_check
-    check (appellation_type in ('AOP', 'AOC', 'IGP', 'Vin de France'));
-exception
-  when duplicate_object then null;
-end $$;
+alter table wines add column if not exists country text;
+-- Une contrainte antérieure limitait la mention aux seules désignations
+-- françaises ; on la retire pour permettre les vins étrangers (DOCG, DO, AVA…).
+alter table wines drop constraint if exists wines_appellation_type_check;
 
 -- Une dégustation = la note + les paramètres de dégustation d'UN utilisateur pour UN vin
 create table if not exists tastings (
