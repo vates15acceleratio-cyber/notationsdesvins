@@ -30,6 +30,11 @@
   }
 }
 
+/* iOS (PWA, status bar translucent): keep sticky headers below the notch / status bar */
+header {
+  padding-top: calc(env(safe-area-inset-top) + 1rem);
+}
+
 ::-webkit-scrollbar {
   width: 6px;
 }
