@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { PhotoInput } from "../components/PhotoInput";
 import { useUser } from "../context/UserContext";
-import { supabase } from "../lib/supabase";
-import { uploadLabelPhoto } from "../lib/uploadPhoto";
+import { createWine, updateWine } from "../lib/data";
+import { saveLabelPhoto } from "../lib/photos";
 import { APPELLATION_SUGGESTIONS, WINE_TYPE_LABELS, type WineType } from "../types";
 
 export function NewWine() {
@@ -33,9 +33,8 @@ export function NewWine() {
     setError(null);
 
     try {
-      const { data: wine, error: insertError } = await supabase
-        .from("wines")
-        .insert({
+      const wine = await createWine(
+        {
           name: name.trim(),
           producer: producer.trim() || null,
           type,
@@ -46,20 +45,18 @@ export function NewWine() {
           appellation_name: appellationName.trim() || null,
           grape_varieties: grapes.trim() || null,
           price: price ? Number(price) : null,
-          created_by: userId,
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
+          photo_path: null,
+        },
+        userId
+      );
 
       // La photo est facultative et ne bloque jamais la création de la fiche.
-      if (photoFile && wine) {
+      if (photoFile) {
         try {
-          const url = await uploadLabelPhoto(photoFile, wine.id);
-          await supabase.from("wines").update({ photo_url: url }).eq("id", wine.id);
+          const path = await saveLabelPhoto(photoFile, wine.id);
+          await updateWine(wine.id, { photo_path: path });
         } catch (photoError) {
-          console.error("Échec de l'envoi de la photo :", photoError);
+          console.error("Échec de l'enregistrement de la photo :", photoError);
         }
       }
 

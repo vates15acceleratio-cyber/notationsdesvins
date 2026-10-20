@@ -1,16 +1,18 @@
 import { Link } from "react-router-dom";
+import { usePhotoUrl } from "../lib/photos";
 import type { WineWithStats } from "../hooks/useWines";
 import { WineTypeBadge } from "./WineTypeBadge";
 
 export function WineCard({ wine }: { wine: WineWithStats }) {
+  const photoUrl = usePhotoUrl(wine.photo_path);
   return (
     <Link
       to={`/vins/${wine.id}`}
       className="flex gap-3 rounded-2xl bg-white p-3 shadow-sm shadow-wine-900/5 transition hover:shadow-md hover:shadow-wine-900/10 active:scale-[0.99]"
     >
       <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-wine-100">
-        {wine.photo_url ? (
-          <img src={wine.photo_url} alt="" className="h-full w-full object-cover" />
+        {photoUrl ? (
+          <img src={photoUrl} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-3xl">🍷</div>
         )}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { saveTasting } from "../lib/data";
 import type { Tasting } from "../types";
 import { StarRating } from "./StarRating";
 
@@ -73,6 +73,7 @@ export function TastingForm({ wineId, userId, existing }: TastingFormProps) {
   const [form, setForm] = useState<FormState>(fromExisting(existing));
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [open, setOpen] = useState(!existing);
 
   useEffect(() => {
@@ -85,9 +86,7 @@ export function TastingForm({ wineId, userId, existing }: TastingFormProps) {
 
   async function handleSave() {
     setSaving(true);
-    const payload = {
-      wine_id: wineId,
-      user_id: userId,
+    const fields = {
       note: form.note,
       robe_couleur: form.robe_couleur || null,
       robe_intensite: form.robe_intensite || null,
@@ -104,13 +103,16 @@ export function TastingForm({ wineId, userId, existing }: TastingFormProps) {
       bouche_equilibre: form.bouche_equilibre || null,
       appreciation: form.appreciation || null,
       accord_mets: form.accord_mets || null,
-      updated_at: new Date().toISOString(),
     };
-    const { error } = await supabase.from("tastings").upsert(payload, { onConflict: "wine_id,user_id" });
-    setSaving(false);
-    if (!error) {
+    try {
+      await saveTasting(wineId, userId, fields);
+      setSaveError(null);
       setSavedAt(Date.now());
       setOpen(false);
+    } catch (err) {
+      setSaveError(`Dégustation non enregistrée : ${(err as Error).message}`);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -253,6 +255,7 @@ export function TastingForm({ wineId, userId, existing }: TastingFormProps) {
           {saving ? "Enregistrement…" : "Enregistrer ma dégustation"}
         </button>
       </div>
+      {saveError && <p className="mt-2 text-sm text-red-600">{saveError}</p>}
     </div>
   );
 }

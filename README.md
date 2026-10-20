@@ -1,87 +1,79 @@
 # Nos Vins 🍷
 
-Carnet de dégustation de vins partagé entre amis, en temps réel. Application web (PWA) : installable sur Android et iOS depuis le navigateur, sans passer par les stores.
+Carnet de dégustation de vins partagé entre amis, **hors ligne d'abord**. Application web (PWA) installable sur Android et iOS depuis le navigateur, sans passer par les stores, et **sans serveur**.
 
 ## Fonctionnalités
 
-- Fiches de vin (rouge, blanc, rosé, gris, pétillant, liquoreux) avec photo de l'étiquette optionnelle (ne bloque jamais la création de la fiche)
-- Chaque personne attribue sa propre note sur 5 et remplit sa fiche de dégustation complète : robe (couleur, intensité, limpidité), nez (intensité, qualité, arômes), bouche (attaque, tanins, acidité, sucrosité, corps, longueur, équilibre), appréciation et accord mets-vin
-- Note moyenne calculée automatiquement
-- Espace commentaires visible par tous sous chaque fiche
-- **Synchronisation en temps réel** : dès qu'une personne modifie une fiche, ajoute une note ou un commentaire, l'autre le voit instantanément
-- Connexion simple par pseudo (pas de mot de passe à gérer)
+- Fiches de vin (rouge, blanc, rosé, gris, pétillant, liquoreux) avec photo de l'étiquette optionnelle (compressée à ~150 Ko)
+- Chaque personne attribue sa propre note sur 5 et remplit sa fiche de dégustation complète : robe, nez, bouche, appréciation et accord mets-vin
+- Note moyenne calculée automatiquement, commentaires sous chaque fiche
+- **Fonctionne sans réseau** : tout est enregistré sur le téléphone
+- **Partage via GitHub** : bouton « Publier » pour envoyer ses notes, « Mettre à jour » pour récupérer celles des autres (aussi fait automatiquement à l'ouverture)
 
-## Stack technique
+## Comment ça marche
 
-- **React + Vite + TypeScript**, Tailwind CSS
-- **Supabase** : base de données Postgres, Realtime, Storage (photos), authentification anonyme
-- **vite-plugin-pwa** pour l'installation sur mobile
+```
+Téléphone A (IndexedDB) ──Publier──▶ nosvins-data/data/<idA>.json ◀──Publier── Téléphone B
+                       ◀─Mettre à jour── (fusion de tous les fichiers) ──Mettre à jour─▶
+```
 
----
+- Les données vivent dans la base locale du navigateur (IndexedDB, via [Dexie](https://dexie.org)).
+- « Publier » écrit l'instantané complet de la base locale dans `data/<id>.json` du dépôt public [`nosvins-data`](https://github.com/vates15acceleratio-cyber/nosvins-data), et les photos en attente dans `photos/`. Chaque personne a **son propre fichier** : aucun conflit d'écriture possible.
+- « Mettre à jour » lit tous les fichiers et fusionne enregistrement par enregistrement : **la version la plus récente (`updated_at`) gagne**. Les suppressions sont des marqueurs (`deleted: true`) pour se propager elles aussi.
+- La lecture ne demande aucun compte. La publication demande une **clé GitHub** saisie dans ⚙️ Réglages (stockée uniquement sur le téléphone).
 
-## 1. Configurer Supabase (gratuit)
+## Mise en place
 
-1. Crée un compte sur [supabase.com](https://supabase.com) et un nouveau projet.
-2. Dans **Authentication → Sign In / Providers**, active **Anonymous Sign-Ins**.
-   (Cela permet à chacun d'utiliser l'app avec juste un pseudo, sans mot de passe ni email — une identité technique stable est quand même créée en coulisses pour que chacun ne modifie que ses propres notes.)
-3. Dans **SQL Editor**, ouvre une nouvelle requête, colle le contenu de [`supabase/schema.sql`](supabase/schema.sql) et exécute-le. Cela crée les tables, les règles de sécurité (RLS), active le temps réel et crée le bucket de stockage `labels` pour les photos.
-4. Dans **Project Settings → API**, récupère :
-   - `Project URL` → `VITE_SUPABASE_URL`
-   - `anon public` key → `VITE_SUPABASE_ANON_KEY`
+### 1. Créer la clé de publication (une fois)
 
-## 2. Configurer le projet en local
+Sur GitHub : **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**
+
+- *Repository access* : **Only select repositories** → `nosvins-data`
+- *Permissions* → *Repository permissions* → **Contents : Read and write** (rien d'autre)
+- *Expiration* : 1 an
+
+Colle la clé dans l'app (⚙️ → Clé de publication). Tu peux transmettre la même clé à un ami pour qu'il publie aussi, sans compte GitHub : elle ne donne accès qu'au dépôt de données, et se révoque à tout moment. Ses publications portent son pseudo.
+
+### 2. Développer en local
 
 ```bash
 npm install
-cp .env.example .env
-```
-
-Renseigne `.env` avec les deux valeurs récupérées à l'étape précédente.
-
-```bash
 npm run dev
 ```
 
-Ouvre `http://localhost:5173`.
+Ouvre `http://localhost:5173/notationsdesvins/`.
 
-## 3. Déployer pour le partager avec ton ami
+### 3. Déployer
 
-Le plus simple est [Vercel](https://vercel.com) (gratuit) :
+Chaque push sur `main` déclenche le workflow [`deploy.yml`](.github/workflows/deploy.yml) qui publie l'app sur GitHub Pages :
+`https://vates15acceleratio-cyber.github.io/notationsdesvins/`
 
-```bash
-npm i -g vercel
-vercel
-```
+Le dépôt du dépôt de données se configure dans [`src/config.ts`](src/config.ts).
 
-Ou via l'interface Vercel : "Import project" → connecte ton repo GitHub → ajoute les deux variables d'environnement (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) dans les réglages du projet → Deploy.
+## Installer l'app sur le téléphone
 
-Netlify fonctionne aussi de façon identique (build command : `npm run build`, publish directory : `dist`).
+**Android (Chrome) :** ouvrir le lien → menu ⋮ → « Ajouter à l'écran d'accueil ».
 
-Une fois déployée, envoie simplement le lien à ton ami.
+**iOS (Safari) :** ouvrir le lien → bouton Partager → « Sur l'écran d'accueil ». Sur iPhone, utilise toujours l'app installée : Safari peut effacer les données d'un site non installé après quelques semaines sans visite (tes notes publiées se récupèrent alors avec « Mettre à jour »).
 
-## 4. Installer l'app sur le téléphone
-
-**Android (Chrome) :** ouvrir le lien → menu ⋮ → "Ajouter à l'écran d'accueil" (ou une bannière d'installation apparaît automatiquement).
-
-**iOS (Safari) :** ouvrir le lien → bouton Partager (carré avec flèche) → "Sur l'écran d'accueil".
-
-L'app s'ouvre alors en plein écran comme une app native, avec son icône.
-
----
+**Nouveau téléphone ?** Au premier lancement, l'app récupère le carnet et propose « Tu es déjà dans le carnet ? » : touche ton pseudo pour reprendre ton identité.
 
 ## Structure du projet
 
 ```
 src/
-  components/     Composants réutilisables (étoiles, formulaire de dégustation, commentaires…)
-  context/        Contexte utilisateur (pseudo + session anonyme Supabase)
-  hooks/          Hooks de données + abonnements temps réel (useWines, useWineDetail)
-  lib/            Client Supabase, upload de photos
-  pages/          Écrans (accueil, nouvelle fiche, détail d'un vin)
-supabase/
-  schema.sql      Schéma complet à exécuter dans Supabase (tables, RLS, realtime, storage)
+  components/     Composants (étoiles, formulaire de dégustation, commentaires, barre de synchro…)
+  context/        UserContext (identité locale) et SyncContext (publier / mettre à jour)
+  hooks/          Requêtes réactives sur la base locale (useWines, useWineDetail)
+  lib/
+    db.ts         Schéma IndexedDB (Dexie)
+    data.ts       Écritures locales (création, modification, suppression)
+    sync.ts       Échange avec GitHub (lecture, fusion, publication)
+    photos.ts     Compression et affichage des photos
+  pages/          Écrans (accueil, nouvelle fiche, détail, réglages)
+  config.ts       Dépôt GitHub des données
 ```
 
-## Notes de sécurité
+## Confidentialité
 
-Cette app est pensée pour être partagée entre quelques personnes de confiance (toi et ton ami) : n'importe qui possédant le lien et l'app peut créer un pseudo et lire/écrire les fiches, notes et commentaires. Pour un usage plus restreint, on peut évoluer vers une vraie authentification par email/mot de passe — le schéma SQL est déjà structuré pour ça (il suffit de remplacer la connexion anonyme par `supabase.auth.signInWithPassword` / `signUp`).
+Le dépôt de données est **public** : toute personne connaissant l'adresse peut lire les notes, commentaires, pseudos et photos d'étiquettes. Ne publie rien de personnel.

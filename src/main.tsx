@@ -1,16 +1,20 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { HashRouter } from "react-router-dom";
 import App from "./App.tsx";
+import { SyncProvider } from "./context/SyncContext.tsx";
 import { UserProvider } from "./context/UserContext.tsx";
 import "./index.css";
 
+// HashRouter : GitHub Pages ne sait pas renvoyer index.html pour /vins/123.
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
+    <HashRouter>
       <UserProvider>
-        <App />
+        <SyncProvider>
+          <App />
+        </SyncProvider>
       </UserProvider>
-    </BrowserRouter>
+    </HashRouter>
   </StrictMode>
 );

@@ -35,10 +35,13 @@ export const APPELLATION_SUGGESTIONS = [
   "Qualitätswein",
 ];
 
+// Chaque enregistrement porte `updated_at` (fusion : la version la plus récente
+// gagne) et `deleted` (une suppression doit elle aussi se propager aux autres).
 export interface Profile {
   id: string;
   pseudo: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Wine {
@@ -53,10 +56,12 @@ export interface Wine {
   appellation_name: string | null;
   grape_varieties: string | null;
   price: number | null;
-  photo_url: string | null;
+  // Chemin dans le dépôt de données, ex. "photos/<id>.jpg"
+  photo_path: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  deleted: boolean;
 }
 
 export interface Tasting {
@@ -81,6 +86,7 @@ export interface Tasting {
   accord_mets: string | null;
   created_at: string;
   updated_at: string;
+  deleted: boolean;
 }
 
 export interface Comment {
@@ -89,4 +95,6 @@ export interface Comment {
   user_id: string;
   content: string;
   created_at: string;
+  updated_at: string;
+  deleted: boolean;
 }

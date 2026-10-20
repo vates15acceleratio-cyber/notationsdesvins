@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useUser } from "../context/UserContext";
-import { supabase } from "../lib/supabase";
+import { addComment } from "../lib/data";
 import type { Comment, Profile } from "../types";
 
 function timeAgo(iso: string): string {
@@ -26,19 +26,22 @@ export function CommentSection({
   const { userId, profile } = useUser();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = text.trim();
     if (!trimmed || !userId) return;
     setSending(true);
-    const { error } = await supabase.from("comments").insert({
-      wine_id: wineId,
-      user_id: userId,
-      content: trimmed,
-    });
-    setSending(false);
-    if (!error) setText("");
+    try {
+      await addComment(wineId, userId, trimmed);
+      setText("");
+      setError(null);
+    } catch (err) {
+      setError(`Commentaire non enregistré : ${(err as Error).message}`);
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -87,6 +90,7 @@ export function CommentSection({
           Envoyer
         </button>
       </form>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );
 }

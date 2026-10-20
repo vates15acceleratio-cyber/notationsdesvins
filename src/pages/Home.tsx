@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { SyncBar } from "../components/SyncBar";
 import { WineCard } from "../components/WineCard";
 import { useUser } from "../context/UserContext";
 import { useWines } from "../hooks/useWines";
@@ -20,10 +21,15 @@ export function Home() {
             <h1 className="font-serif text-2xl font-semibold text-wine-900">Nos Vins</h1>
             <p className="text-sm text-wine-700/60">Salut {profile?.pseudo} 👋</p>
           </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-wine-700 text-lg text-white">
-            🍇
-          </div>
+          <Link
+            to="/reglages"
+            aria-label="Réglages"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-wine-700 text-lg text-white"
+          >
+            ⚙️
+          </Link>
         </div>
+        <SyncBar />
         <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
           {(["tous", "rouge", "blanc", "rose", "gris", "petillant", "liquoreux"] as const).map(
             (t) => (

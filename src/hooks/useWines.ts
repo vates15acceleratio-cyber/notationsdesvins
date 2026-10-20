@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
-import type { Profile, Tasting, Wine } from "../types";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../lib/db";
+import type { Tasting, Wine } from "../types";
 
 export interface WineWithStats extends Wine {
   tastings: (Tasting & { pseudo: string })[];
@@ -8,45 +8,25 @@ export interface WineWithStats extends Wine {
 }
 
 export function useWines() {
-  const [wines, setWines] = useState<WineWithStats[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  async function fetchAll() {
-    const [{ data: wineRows }, { data: tastingRows }, { data: profileRows }] = await Promise.all([
-      supabase.from("wines").select("*").order("created_at", { ascending: false }),
-      supabase.from("tastings").select("*"),
-      supabase.from("profiles").select("*"),
+  // useLiveQuery se relance tout seul à chaque modification de la base locale
+  // (saisie sur ce téléphone ou fusion d'une mise à jour venue de GitHub).
+  const wines = useLiveQuery(async () => {
+    const [wineRows, tastingRows, profileRows] = await Promise.all([
+      db.wines.orderBy("created_at").reverse().filter((w) => !w.deleted).toArray(),
+      db.tastings.filter((t) => !t.deleted).toArray(),
+      db.profiles.toArray(),
     ]);
+    const pseudoOf = new Map(profileRows.map((p) => [p.id, p.pseudo]));
 
-    const profileMap = new Map<string, Profile>((profileRows ?? []).map((p) => [p.id, p]));
-
-    const combined: WineWithStats[] = (wineRows ?? []).map((wine) => {
-      const wineTastings = (tastingRows ?? [])
+    return wineRows.map((wine): WineWithStats => {
+      const wineTastings = tastingRows
         .filter((t) => t.wine_id === wine.id)
-        .map((t) => ({ ...t, pseudo: profileMap.get(t.user_id)?.pseudo ?? "?" }));
+        .map((t) => ({ ...t, pseudo: pseudoOf.get(t.user_id) ?? "?" }));
       const notes = wineTastings.map((t) => t.note).filter((n): n is number => n != null);
       const averageNote = notes.length ? notes.reduce((a, b) => a + b, 0) / notes.length : null;
       return { ...wine, tastings: wineTastings, averageNote };
     });
-
-    setWines(combined);
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    fetchAll();
-
-    const channel = supabase
-      .channel("wines-list")
-      .on("postgres_changes", { event: "*", schema: "public", table: "wines" }, fetchAll)
-      .on("postgres_changes", { event: "*", schema: "public", table: "tastings" }, fetchAll)
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, fetchAll)
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
-  return { wines, loading, refetch: fetchAll };
+  return { wines: wines ?? [], loading: wines === undefined };
 }

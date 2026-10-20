@@ -7,18 +7,20 @@ import { TastingForm } from "../components/TastingForm";
 import { WineTypeBadge } from "../components/WineTypeBadge";
 import { useUser } from "../context/UserContext";
 import { useWineDetail } from "../hooks/useWineDetail";
-import { supabase } from "../lib/supabase";
-import { uploadLabelPhoto } from "../lib/uploadPhoto";
+import { deleteWine, updateWine } from "../lib/data";
+import { saveLabelPhoto, usePhotoUrl } from "../lib/photos";
 import { APPELLATION_SUGGESTIONS, WINE_TYPE_LABELS, type WineType } from "../types";
 
 export function WineDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { userId } = useUser();
-  const { wine, tastings, comments, profiles, loading, refetch } = useWineDetail(id);
+  const { wine, tastings, comments, profiles, loading } = useWineDetail(id);
+  const photoUrl = usePhotoUrl(wine?.photo_path ?? null);
   const [editing, setEditing] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   if (loading) {
     return <p className="p-6 text-center text-wine-700/50">Chargement…</p>;
@@ -42,9 +44,11 @@ export function WineDetail() {
     if (!wine) return;
     setUploadingPhoto(true);
     try {
-      const url = await uploadLabelPhoto(file, wine.id);
-      await supabase.from("wines").update({ photo_url: url }).eq("id", wine.id);
-      refetch();
+      const path = await saveLabelPhoto(file, wine.id);
+      await updateWine(wine.id, { photo_path: path });
+      setActionError(null);
+    } catch (err) {
+      setActionError(`Photo non enregistrée : ${(err as Error).message}`);
     } finally {
       setUploadingPhoto(false);
     }
@@ -54,8 +58,13 @@ export function WineDetail() {
     if (!wine) return;
     if (!confirm(`Supprimer la fiche "${wine.name}" ? Cette action est irréversible.`)) return;
     setDeleting(true);
-    await supabase.from("wines").delete().eq("id", wine.id);
-    navigate("/");
+    try {
+      await deleteWine(wine.id);
+      navigate("/");
+    } catch (err) {
+      setActionError(`Suppression impossible : ${(err as Error).message}`);
+      setDeleting(false);
+    }
   }
 
   return (
@@ -73,11 +82,12 @@ export function WineDetail() {
       </header>
 
       <div className="px-4 pt-4">
-        <PhotoInput previewUrl={wine.photo_url} onFileSelected={handlePhotoChange} uploading={uploadingPhoto} />
+        <PhotoInput previewUrl={photoUrl} onFileSelected={handlePhotoChange} uploading={uploadingPhoto} />
+        {actionError && <p className="mt-2 text-sm text-red-600">{actionError}</p>}
       </div>
 
       {editing ? (
-        <WineEditForm wine={wine} onDone={() => setEditing(false)} refetch={refetch} />
+        <WineEditForm wine={wine} onDone={() => setEditing(false)} />
       ) : (
         <div className="px-4 pt-4">
           <h1 className="font-serif text-2xl font-semibold text-wine-900">{wine.name}</h1>
@@ -178,11 +188,9 @@ function Detail({ label, value }: { label: string; value: string }) {
 function WineEditForm({
   wine,
   onDone,
-  refetch,
 }: {
   wine: NonNullable<ReturnType<typeof useWineDetail>["wine"]>;
   onDone: () => void;
-  refetch: () => void;
 }) {
   const [name, setName] = useState(wine.name);
   const [producer, setProducer] = useState(wine.producer ?? "");
@@ -195,12 +203,16 @@ function WineEditForm({
   const [grapes, setGrapes] = useState(wine.grape_varieties ?? "");
   const [price, setPrice] = useState(wine.price?.toString() ?? "");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
+    if (!name.trim()) {
+      setError("Le nom du vin est obligatoire.");
+      return;
+    }
     setSaving(true);
-    await supabase
-      .from("wines")
-      .update({
+    try {
+      await updateWine(wine.id, {
         name: name.trim(),
         producer: producer.trim() || null,
         type,
@@ -211,12 +223,12 @@ function WineEditForm({
         appellation_name: appellationName.trim() || null,
         grape_varieties: grapes.trim() || null,
         price: price ? Number(price) : null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", wine.id);
-    setSaving(false);
-    refetch();
-    onDone();
+      });
+      onDone();
+    } catch (err) {
+      setError(`Modifications non enregistrées : ${(err as Error).message}`);
+      setSaving(false);
+    }
   }
 
   return (
@@ -273,6 +285,7 @@ function WineEditForm({
         className="input"
       />
       <input value={grapes} onChange={(e) => setGrapes(e.target.value)} placeholder="Cépage(s)" className="input" />
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         onClick={handleSave}
         disabled={saving}

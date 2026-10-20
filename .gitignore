@@ -13,7 +13,7 @@ dist-ssr
 dev-dist
 *.local
 
-# Secrets Supabase locaux
+# Variables locales
 .env
 .env.*.local
 
