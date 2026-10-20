@@ -77,7 +77,9 @@ async function listDataFiles(): Promise<RemoteFile[]> {
 }
 
 function isNewer(a: { updated_at: string }, b: { updated_at: string } | undefined) {
-  return !b || Date.parse(a.updated_at) > Date.parse(b.updated_at);
+  // || 0 : les dates importées de Supabase (6 décimales) peuvent être illisibles
+  // pour Safari ; elles perdent alors face à toute modification récente.
+  return !b || (Date.parse(a.updated_at) || 0) > (Date.parse(b.updated_at) || 0);
 }
 
 async function mergeInto<T extends { id: string; updated_at: string }, I>(
