@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { DATA_REPO } from "../config";
 import { useSync } from "../context/SyncContext";
 import { useUser } from "../context/UserContext";
-import { getToken, setToken } from "../lib/sync";
+import { cleanToken, getToken, looksLikeToken, setToken, testToken } from "../lib/sync";
 
 export function Settings() {
   const { profile, setPseudo } = useUser();
@@ -12,6 +12,8 @@ export function Settings() {
   const [token, setTokenInput] = useState("");
   const [hasToken, setHasToken] = useState(() => !!getToken());
   const [saved, setSaved] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
 
   async function savePseudo() {
     const trimmed = pseudo.trim();
@@ -20,18 +22,38 @@ export function Settings() {
     setSaved("Pseudo enregistré ✓ (publie pour le partager)");
   }
 
-  function saveToken() {
-    if (!token.trim()) return;
-    setToken(token);
+  async function saveToken() {
+    const cleaned = cleanToken(token);
+    if (!cleaned) return;
+    if (!looksLikeToken(cleaned)) {
+      setTestResult(
+        `Cette clé semble incomplète (${cleaned.length} caractères). Une clé complète commence par « github_pat_ » et fait environ 93 caractères.`
+      );
+      return;
+    }
+    setToken(cleaned);
     setTokenInput("");
     setHasToken(true);
     onTokenChanged();
     setSaved("Clé enregistrée sur ce téléphone ✓");
+    await runTest();
+  }
+
+  async function runTest() {
+    setTesting(true);
+    try {
+      setTestResult(await testToken());
+    } catch {
+      setTestResult("Pas de connexion : impossible de vérifier la clé.");
+    } finally {
+      setTesting(false);
+    }
   }
 
   function removeToken() {
     setToken(null);
     setHasToken(false);
+    setTestResult(null);
     onTokenChanged();
     setSaved("Clé retirée de ce téléphone");
   }
@@ -71,10 +93,15 @@ export function Settings() {
           </p>
           {hasToken ? (
             <div className="mt-3 flex items-center justify-between gap-2">
-              <span className="text-sm text-green-700">✓ Clé enregistrée sur ce téléphone</span>
-              <button onClick={removeToken} className="text-sm text-red-600/80">
-                Retirer
-              </button>
+              <span className="text-sm text-green-700">Clé enregistrée sur ce téléphone</span>
+              <div className="flex gap-3">
+                <button onClick={runTest} disabled={testing} className="text-sm font-medium text-wine-700">
+                  {testing ? "Test…" : "Tester la clé"}
+                </button>
+                <button onClick={removeToken} className="text-sm text-red-600/80">
+                  Retirer
+                </button>
+              </div>
             </div>
           ) : (
             <div className="mt-3 flex gap-2">
@@ -90,6 +117,15 @@ export function Settings() {
                 OK
               </button>
             </div>
+          )}
+          {testResult && (
+            <p
+              className={`mt-3 rounded-lg px-3 py-2 text-sm ${
+                testResult.startsWith("✓") ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-800"
+              }`}
+            >
+              {testResult}
+            </p>
           )}
           <details className="mt-3 text-xs text-wine-700/70">
             <summary className="cursor-pointer font-medium">Comment obtenir la clé ?</summary>

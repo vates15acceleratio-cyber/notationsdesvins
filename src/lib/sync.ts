@@ -20,22 +20,32 @@ const TOKEN_KEY = "nosvins.githubToken";
 
 export function getToken(): string | null {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    const stored = localStorage.getItem(TOKEN_KEY);
+    return stored ? cleanToken(stored) : null;
   } catch {
     return null;
   }
 }
 
+// Une clé GitHub ne contient que lettres, chiffres et « _ » : on retire espaces,
+// retours à la ligne et caractères invisibles ajoutés par les messageries.
+export function cleanToken(raw: string) {
+  return raw.replace(/[^A-Za-z0-9_]/g, "");
+}
+
+export function looksLikeToken(token: string) {
+  return /^(github_pat_[A-Za-z0-9_]{70,}|ghp_[A-Za-z0-9]{36})$/.test(token);
+}
+
 export function setToken(token: string | null) {
-  if (token) localStorage.setItem(TOKEN_KEY, token.trim());
+  if (token) localStorage.setItem(TOKEN_KEY, cleanToken(token));
   else localStorage.removeItem(TOKEN_KEY);
 }
 
 const API = `https://api.github.com/repos/${DATA_REPO.owner}/${DATA_REPO.repo}`;
 
-async function gh(path: string, init: RequestInit = {}, accept = "application/vnd.github+json") {
-  const token = getToken();
-  const res = await fetch(`${API}${path}`, {
+function request(path: string, init: RequestInit, accept: string, token: string | null) {
+  return fetch(`${API}${path}`, {
     ...init,
     cache: "no-store",
     headers: {
@@ -45,8 +55,17 @@ async function gh(path: string, init: RequestInit = {}, accept = "application/vn
       ...init.headers,
     },
   });
+}
+
+async function gh(path: string, init: RequestInit = {}, accept = "application/vnd.github+json") {
+  const token = getToken();
+  let res = await request(path, init, accept, token);
+  // Le dépôt est public : une clé refusée ne doit pas empêcher de lire.
+  if (res.status === 401 && token && (init.method ?? "GET") === "GET") {
+    res = await request(path, init, accept, null);
+  }
   if (!res.ok && res.status !== 404) {
-    if (res.status === 401) throw new Error("Clé GitHub invalide ou expirée (réglages).");
+    if (res.status === 401) throw new Error("Clé GitHub refusée : ⚙️ Réglages → « Tester la clé » pour savoir pourquoi.");
     if (res.status === 403 && res.headers.get("x-ratelimit-remaining") === "0")
       throw new Error("Trop de requêtes vers GitHub, réessaie dans quelques minutes.");
     if (res.status === 403) throw new Error("La clé GitHub n'a pas le droit d'écrire dans le dépôt de données.");
@@ -174,4 +193,20 @@ export async function publish(author: Snapshot["author"]) {
   // Les modifications faites pendant la publication restent à publier.
   await setMeta("dirty", Math.max(0, (await getMeta("dirty", 0)) - dirtyAtStart));
   await setMeta("lastPublishAt", now());
+}
+
+// Vérifie la clé enregistrée et explique le problème en clair.
+export async function testToken(): Promise<string> {
+  const token = getToken();
+  if (!token) return "Aucune clé enregistrée.";
+  if (!looksLikeToken(token))
+    return `La clé enregistrée semble incomplète (${token.length} caractères, commence par « ${token.slice(0, 11)} »). Une clé complète commence par « github_pat_ » et fait environ 93 caractères : recopie-la en entier.`;
+  const res = await request("", {}, "application/vnd.github+json", token);
+  if (res.status === 401) return "GitHub refuse cette clé : elle est fausse, expirée ou a été supprimée. Crée-en une nouvelle.";
+  if (res.status === 404) return `La clé est valide mais n'a pas accès au dépôt « ${DATA_REPO.repo} » : choisis-le dans « Only select repositories ».`;
+  if (!res.ok) return `GitHub a répondu ${res.status}.`;
+  const repo = (await res.json()) as { permissions?: { push?: boolean } };
+  if (!repo.permissions?.push)
+    return "La clé peut lire mais pas publier : mets la permission « Contents » sur « Read and write ».";
+  return "✓ Clé valide : tu peux publier.";
 }
